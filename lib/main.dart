@@ -1,121 +1,213 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const CalculatorApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class CalculatorApp extends StatelessWidget {
+  const CalculatorApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      home: CalculatorPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class CalculatorPage extends StatefulWidget {
+  const CalculatorPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<CalculatorPage> createState() => _CalculatorPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _CalculatorPageState extends State<CalculatorPage> {
+  String display = '0';
+  double? firstNumber;
+  String? operator;
+  bool _isDark = false;
+  bool _waiting = false;
 
-  void _incrementCounter() {
+  // Single function for all button presses that checks which button was pressed and acts accordingly
+  void onButtonPressed(String value) {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      if (value == 'AC') {
+        display = '0';
+        firstNumber = null;
+        operator = null;
+        return;
+      }
+
+      // When an operator is pressed, parse the number in the display, store the operator, and signal waiting for second number
+      if (value == '+' || value == '-' || value == '×' || value == '/') {
+        firstNumber = double.parse(display);
+        operator = value;
+        display = '$firstNumber$operator'; 
+        _waiting = true;
+        return;
+      }
+
+      // With valid first num and operator, parse second number and perform operation
+      if (value == '=') {
+        if (firstNumber != null && operator != null) {
+          double secondNumber = double.parse(display);
+          double result = 0;
+
+          switch (operator) {
+            case '+':
+              result = firstNumber! + secondNumber;
+              break;
+            case '-':
+              result = firstNumber! - secondNumber;
+              break;
+            case '×':
+              result = firstNumber! * secondNumber;
+              break;
+            case '/':
+              // Dividing by 0 simply produces 0 instead of an error
+              result = secondNumber == 0 ? 0 : firstNumber! / secondNumber;
+              break;
+          }
+
+          display = result.toString();
+          firstNumber = null;
+          operator = null;
+        }
+        return;
+      }
+
+      // Second number pressed
+      if (_waiting) {
+        display = value;
+        _waiting = false;
+      } else if (display == '0') {
+        display = value;
+      } else {
+        display += value;
+      }
     });
   }
 
+  void _toggleTheme() {
+    setState(() {
+    _isDark = !_isDark;
+  });
+}
+
+  // Button building widget to avoid having 16 near identical ones later
+  Widget buildButton(String text) {
+    // Checks if the button being built is an operator
+    final bool isOperator =  ['+', '-', '×', '/', '=', 'AC'].contains(text);
+
+    // If the button is an operator, its color is blue. Else, it will be grey
+    final Color baseColor = isOperator ? Colors.lightBlue : const Color(0xFF2E2E2E);
+  return Expanded(
+    child: AspectRatio(
+      aspectRatio: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: ElevatedButton(
+          onPressed: () => onButtonPressed(text),
+          style: ButtonStyle(
+            elevation: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return 0; // Elevation drops to 0 when pressed
+              }
+                return 10; // High rest elevation
+            }),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return Colors.orange; // Buttons turn orange when pressed
+              }
+              return baseColor; // Appropriate base button color
+            }),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 24),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    return Theme(
+      data: _isDark ? ThemeData.dark() : ThemeData.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Calculator'),
+          actions: [
+            // Theme toggle button top right of appbar
+            IconButton(
+              onPressed: _toggleTheme,
+              icon: Icon(_isDark ? Icons.light_mode : Icons.dark_mode),
+              tooltip: 'Toggle Theme',
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Display area container
+              Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  display,
+                  style: TextStyle(
+                    fontSize: 48,
+                    color: _isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    // Labels and places for various buttons
+                    Row(
+                      children: [
+                        buildButton('7'),
+                        buildButton('8'),
+                        buildButton('9'),
+                        buildButton('/'),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        buildButton('4'),
+                        buildButton('5'),
+                        buildButton('6'),
+                        buildButton('×'),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        buildButton('1'),
+                        buildButton('2'),
+                        buildButton('3'),
+                        buildButton('-'),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        buildButton('AC'),
+                        buildButton('0'),
+                        buildButton('='),
+                        buildButton('+'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
